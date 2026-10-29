@@ -1,0 +1,2 @@
+export const ROLES=['VIEWER','EXECUTIVE','DATA_ENTRY','ADMIN'] as const;export type Role=typeof ROLES[number];export type UnitGrant={scope:'FACULTY'|'UNIT';unitId?:string;canRead:boolean;canWrite:boolean};
+export function canAccess(grants:UnitGrant[],target:{scope:'FACULTY'|'UNIT';unitId?:string},write=false){if(target.scope==='UNIT'&&!target.unitId)return false;return grants.some(g=>(write?g.canWrite:g.canRead)&&((target.scope==='FACULTY'&&g.scope==='FACULTY')||(target.scope==='UNIT'&&(g.scope==='FACULTY'||(g.scope==='UNIT'&&g.unitId===target.unitId)))))}

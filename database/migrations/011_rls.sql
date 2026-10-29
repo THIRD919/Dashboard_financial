@@ -1,0 +1,11 @@
+begin;
+create or replace function app.current_profile_id() returns uuid language sql stable as $$select nullif(current_setting('app.current_profile_id',true),'')::uuid$$;
+create or replace function app.has_permission(required_permission text) returns boolean language sql stable security definer set search_path=app,public as $$select exists(select 1 from app.user_roles ur join app.roles r on r.id=ur.role_id and r.active join app.role_permissions rp on rp.role_id=r.id join app.permissions p on p.id=rp.permission_id where ur.profile_id=app.current_profile_id() and p.code=required_permission and (ur.expires_at is null or ur.expires_at>now()))$$;
+create or replace function app.can_access_scope(target_scope app.reporting_scope,target_unit uuid,require_write boolean default false) returns boolean language sql stable security definer set search_path=app,public as $$select exists(select 1 from app.user_unit_access ua where ua.profile_id=app.current_profile_id() and (ua.expires_at is null or ua.expires_at>now()) and ua.can_read and (not require_write or ua.can_write) and ((target_scope='FACULTY' and ua.reporting_scope='FACULTY') or (target_scope='UNIT' and (ua.reporting_scope='FACULTY' or (ua.reporting_scope='UNIT' and ua.unit_id=target_unit)))))$$;
+alter table app.financial_records enable row level security;alter table app.reconciliations enable row level security;alter table app.audit_logs enable row level security;
+create policy financial_records_read on app.financial_records for select using(app.has_permission('financial.view') and app.can_access_scope(reporting_scope,unit_id,false));
+create policy financial_records_create on app.financial_records for insert with check(app.has_permission('financial.create') and app.can_access_scope(reporting_scope,unit_id,true) and status='DRAFT');
+create policy financial_records_draft_update on app.financial_records for update using(app.has_permission('financial.update') and app.can_access_scope(reporting_scope,unit_id,true) and status in('DRAFT','REJECTED')) with check(status in('DRAFT','SUBMITTED'));
+create policy reconciliations_read on app.reconciliations for select using(app.has_permission('financial.view') and app.can_access_scope('FACULTY',null,false));
+create policy audit_logs_read on app.audit_logs for select using(app.has_permission('audit.view'));
+commit;

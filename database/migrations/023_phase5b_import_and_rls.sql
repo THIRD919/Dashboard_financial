@@ -1,0 +1,11 @@
+begin;
+create or replace function app.tag_imported_financial_record() returns trigger language plpgsql as $$begin if new.source_type='EXCEL_IMPORT' and new.source_record_key is not null then new.import_batch_id=split_part(new.source_record_key,':',1)::uuid;new.entry_batch_id=new.import_batch_id;end if;return new;end$$;
+create trigger tag_imported_financial_record before insert on app.financial_records for each row execute function app.tag_imported_financial_record();
+alter table app.period_scope_locks enable row level security;alter table app.correction_requests enable row level security;alter table app.workflow_events enable row level security;alter table app.notifications enable row level security;
+create policy period_locks_read on app.period_scope_locks for select using(app.has_permission('financial.view'));
+create policy period_locks_manage on app.period_scope_locks for insert with check(app.has_permission('period.lock') and app.can_access_scope(reporting_scope,unit_id,false));
+create policy corrections_read on app.correction_requests for select using(requested_by=app.current_profile_id() or assigned_to=app.current_profile_id() or app.has_permission('financial.review'));
+create policy corrections_request on app.correction_requests for insert with check(app.has_permission('financial.request_correction'));
+create policy workflow_events_read on app.workflow_events for select using(app.has_permission('financial.view'));
+create policy notifications_self on app.notifications for select using(recipient_profile_id=app.current_profile_id());
+commit;

@@ -1,0 +1,16 @@
+"use client";
+import Link from "next/link";
+import {usePathname} from "next/navigation";
+import {useEffect,useState} from "react";
+import {BarChart3,Bell,Building2,ClipboardCheck,ClipboardPen,FileUp,LayoutDashboard,LogOut,ShieldCheck,Settings} from "lucide-react";
+import type {Locale} from "@/lib/types";
+import {tFor} from "@/lib/i18n";
+
+export function AppShell({locale,children,capabilities}:{locale:Locale;children:React.ReactNode;capabilities?:string[]}){
+ const t=tFor(locale),pathname=usePathname(),localized=(next:Locale)=>pathname.replace(/^\/(th|en)(?=\/|$)/,`/${next}`);
+ const [sessionCapabilities,setSessionCapabilities]=useState<string[]|undefined>(capabilities);
+ useEffect(()=>{if(!capabilities)fetch('/api/session-access').then(r=>r.ok?r.json():null).then(x=>x&&setSessionCapabilities(x.capabilities)).catch(()=>setSessionCapabilities([]))},[capabilities]);
+ const nav=[['dashboard',t.overview,LayoutDashboard,'dashboard.view'],['financial-analysis',t.analysis,BarChart3,'financial.view'],['unit-performance',t.units,Building2,'financial.view'],['data-entry',t.entry,ClipboardPen,'financial.create'],['review',locale==='th'?'ตรวจสอบ':'Review',ClipboardCheck,'financial.review'],['approval',locale==='th'?'อนุมัติขั้นสุดท้าย':'Final Approval',ShieldCheck,'financial.final_approve'],['tasks',locale==='th'?'งานของฉัน':'My Tasks',Bell,'tasks.view'],['import',locale==='th'?'นำเข้า Excel':'Excel Import',FileUp,'import.upload'],['admin',t.admin,Settings,'users.view']] as const;
+ const visible=sessionCapabilities?nav.filter(item=>sessionCapabilities.includes(item[3])):[];
+ return <div className="min-h-screen lg:flex"><aside className="bg-[#3f1e49] text-white lg:fixed lg:inset-y-0 lg:w-60"><div className="border-b border-white/15 px-5 py-5"><div className="text-xs font-semibold tracking-[.18em] text-[#d7b66e]">VET CMU</div><div className="mt-1 text-sm leading-5">{t.subtitle}</div></div><nav className="flex overflow-x-auto p-2 lg:block lg:p-3">{visible.map(([slug,label,Icon])=><Link key={slug} href={`/${locale}/${slug}`} className={`flex shrink-0 items-center gap-3 rounded-xl px-4 py-3 text-sm ${pathname.endsWith(`/${slug}`)?'bg-white/14 text-white':'text-white/72 hover:bg-white/8'}`}><Icon size={18}/>{label}</Link>)}</nav></aside><main className="min-w-0 flex-1 lg:ml-60"><header className="flex items-center justify-between border-b border-[#e5e0e7] bg-white px-4 py-4 sm:px-6"><div><h1 className="text-xl font-semibold text-[#3f1e49] sm:text-2xl">{t.title}</h1>{locale==='th'&&<p className="mt-0.5 text-xs font-medium text-[#9b7837]">{t.englishTitle}</p>}<p className="mt-1 text-xs text-[#736b76]">{t.subtitle}</p></div><div className="flex items-center gap-2"><div className="rounded-lg border border-[#ddd5e0] p-1 text-xs"><Link className={`inline-block rounded px-2 py-1 ${locale==='th'?'bg-[#3f1e49] text-white':''}`} href={localized('th')}>TH</Link><span className="px-1">|</span><Link className={`inline-block rounded px-2 py-1 ${locale==='en'?'bg-[#3f1e49] text-white':''}`} href={localized('en')}>EN</Link></div><Link href={`/${locale}/logout`} title={locale==='th'?'ออกจากระบบ':'Sign Out'} className="rounded-lg border p-2"><LogOut size={16}/></Link></div></header>{children}</main></div>
+}

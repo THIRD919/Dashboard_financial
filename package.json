@@ -1,0 +1,53 @@
+{
+  "name": "vet-cmu-financial-dashboard-prototype",
+  "version": "0.3.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "dev:demo": "ENABLE_DEMO_AUTH=true DASHBOARD_DATA_PROVIDER=database next dev --webpack -p 3000",
+    "demo": "node scripts/reset-demo.mjs && ENABLE_DEMO_AUTH=true DASHBOARD_DATA_PROVIDER=database next dev --webpack -p 3000",
+    "demo:auth": "node scripts/reset-demo.mjs && ENABLE_DEMO_AUTH=true DASHBOARD_DATA_PROVIDER=database next dev --webpack -p 3000",
+    "demo:reset": "node scripts/reset-demo.mjs",
+    "build": "npm run extract-data && next build",
+    "start": "next start",
+    "extract-data": "python3 scripts/extract-excel-prototype-data.py",
+    "test:financial": "node scripts/check-financial-regression.mjs",
+    "test:annual": "node tests/annual-reporting.test.mjs",
+    "test:database": "node scripts/check-database-migrations.mjs && node tests/database-foundation.test.mjs",
+    "test:data-entry": "node tests/data-entry.test.mjs",
+    "test:calculation-trace": "node tests/calculation-trace.test.mjs",
+    "test:dashboard-scope": "node tests/dashboard-scope-isolation.test.mjs",
+    "test:excel-import": "node tests/excel-import.test.mjs",
+    "test:auth": "node tests/auth-access.test.mjs",
+    "test:data-entry-access": "node tests/data-entry-access.test.mjs",
+    "test:workflow": "node tests/phase5b-workflow.test.mjs",
+    "test:security": "node tests/security-hardening.test.mjs",
+    "test:production-bootstrap": "node scripts/check-production-bootstrap.mjs",
+    "backup:test": "APP_ENV=development node scripts/backup-restore-test.mjs",
+    "restore:test": "APP_ENV=development node scripts/backup-restore-test.mjs",
+    "test:performance": "node scripts/performance-baseline.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "0.5.4",
+    "@supabase/ssr": "0.7.0",
+    "@supabase/supabase-js": "2.57.4",
+    "@tailwindcss/postcss": "4.3.3",
+    "exceljs": "4.4.0",
+    "jszip": "3.10.1",
+    "lucide-react": "latest",
+    "next": "16.2.11",
+    "react": "latest",
+    "react-dom": "latest",
+    "recharts": "3.10.1",
+    "tailwindcss": "4.3.3"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "typescript": "5.9.3",
+    "@types/bun": "latest"
+  }
+}

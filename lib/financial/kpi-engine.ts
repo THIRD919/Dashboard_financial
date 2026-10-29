@@ -1,0 +1,12 @@
+import {Money} from "./money.ts";
+export type KpiResult={code:string;value:string|null;status:"AVAILABLE"|"NOT_AVAILABLE"|"UNSAFE";sourcePeriod?:string;reason?:string};
+const ratio=(n:number,d:number)=>d===0?null:n/d;
+export const kpiEngine={
+ revenue:(value:string|null):KpiResult=>({code:'REVENUE',value,status:value==null?'NOT_AVAILABLE':'AVAILABLE'}),
+ expense:(value:string|null):KpiResult=>({code:'EXPENSE',value,status:value==null?'NOT_AVAILABLE':'AVAILABLE'}),
+ operatingResult:(revenue:string|null,expense:string|null):KpiResult=>revenue==null||expense==null?{code:'OPERATING_RESULT',value:null,status:'NOT_AVAILABLE'}:{code:'OPERATING_RESULT',value:Money.fromDecimal(revenue).subtract(Money.fromDecimal(expense)).toDecimal(),status:'AVAILABLE'},
+ operatingMargin:(revenue:string|null,expense:string|null):KpiResult=>{if(revenue==null||expense==null)return{code:'OPERATING_MARGIN',value:null,status:'NOT_AVAILABLE'};const r=Money.fromDecimal(revenue),result=r.subtract(Money.fromDecimal(expense)),value=ratio(result.toNumber(),r.toNumber());return{code:'OPERATING_MARGIN',value:value==null?null:String(value),status:value==null?'NOT_AVAILABLE':'AVAILABLE',reason:value==null?'ZERO_DENOMINATOR':undefined}},
+ financialLiquidity:(assets:string|null,liabilities:string|null,sourcePeriod?:string):KpiResult=>{const value=assets==null||liabilities==null?null:ratio(Number(assets),Number(liabilities));return{code:'FINANCIAL_LIQUIDITY',value:value==null?null:String(value),status:value==null?'NOT_AVAILABLE':'AVAILABLE',sourcePeriod}},
+ achievement:(code:'REVENUE_ACHIEVEMENT'|'EXPENSE_UTILIZATION',actual:string|null,budget:string|null,budgetScope:'ANNUAL'|'PERIOD'|'UNKNOWN'):KpiResult=>budgetScope==='UNKNOWN'?{code,value:null,status:'UNSAFE',reason:'BUDGET_SCOPE_UNKNOWN'}:actual==null||budget==null?{code,value:null,status:'NOT_AVAILABLE'}:{code,value:ratio(Number(actual),Number(budget))?.toString()??null,status:Number(budget)===0?'NOT_AVAILABLE':'AVAILABLE',reason:Number(budget)===0?'ZERO_DENOMINATOR':undefined},
+ growth:(code:'REVENUE_GROWTH'|'EXPENSE_GROWTH'|'OPERATING_RESULT_GROWTH',current:string|null,comparison:string|null):KpiResult=>{if(current==null||comparison==null||Number(comparison)===0)return{code,value:null,status:'NOT_AVAILABLE',reason:comparison!=null&&Number(comparison)===0?'ZERO_DENOMINATOR':'COMPARISON_NOT_AVAILABLE'};return{code,value:String((Number(current)-Number(comparison))/Math.abs(Number(comparison))),status:'AVAILABLE'}}
+};

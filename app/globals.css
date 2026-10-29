@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+:root { color-scheme: light; --purple:#472052; --gold:#b78b3b; }
+* { box-sizing: border-box; }
+body { margin:0; background:#f6f5f7; color:#27232a; font-family:Arial,"Noto Sans Thai",sans-serif; }
+button,select { font:inherit; }
+.card { background:white; border:1px solid #e8e4ea; border-radius:16px; box-shadow:0 3px 14px rgba(44,24,48,.05); }
+.scrollbar::-webkit-scrollbar { width:6px; height:6px; }.scrollbar::-webkit-scrollbar-thumb{background:#d4ccd7;border-radius:9px}
+
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+html, body { min-height: 100%; }
+body { margin: 0; background: #f7f6f8; color: #211827; font-family: Inter, "Noto Sans Thai", "Leelawadee UI", Tahoma, system-ui, sans-serif; }

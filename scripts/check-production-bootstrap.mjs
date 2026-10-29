@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import {PGlite} from '@electric-sql/pglite';
+import {pgcrypto} from '@electric-sql/pglite/contrib/pgcrypto';
+import {migrate} from './check-database-migrations.mjs';
+const db=new PGlite({extensions:{pgcrypto}});await migrate(db,{seedMode:'production'});
+assert.equal((await db.query(`select count(*)::int n from app.profiles`)).rows[0].n,0);
+assert.equal((await db.query(`select count(*)::int n from app.financial_records`)).rows[0].n,0);
+assert.equal((await db.query(`select count(*)::int n from app.organizational_units where active`)).rows[0].n,11);
+assert.ok((await db.query(`select count(*)::int n from app.roles where code in('DATA_ENTRY','REVIEWER','FINAL_APPROVER','ADMIN','EXECUTIVE')`)).rows[0].n>=5);
+console.log('Production bootstrap passed: structural master data only; zero users and zero financial facts.');await db.close();

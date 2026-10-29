@@ -1,0 +1,10 @@
+"use server";
+import {getLocalDatabase} from '@/lib/database/local-pglite';
+import {cancelImport,confirmImport,importHistory,stageWorkbook} from '@/lib/import/service';
+import type {ImportProfileCode} from '@/lib/import/types';
+import {requireAccess} from '@/lib/auth/access';
+import {checkRateLimit} from '@/lib/security/rate-limit';
+export async function uploadWorkbookAction(formData:FormData){const access=await requireAccess('import.upload');if(!checkRateLimit(`import:${access.identity.profileId}`,20,60*60*1000).allowed)return{ok:false,error:'TOO_MANY_ATTEMPTS'};const file=formData.get('file');if(!(file instanceof File))throw new Error('FILE_REQUIRED');const profile=String(formData.get('profile')??'') as ImportProfileCode|'';try{return{ok:true,preview:await stageWorkbook(await getLocalDatabase(),{fileName:file.name,mimeType:file.type,bytes:new Uint8Array(await file.arrayBuffer()),profileCode:profile||undefined,actorProfileId:access.identity.profileId})}}catch{return{ok:false,error:'UPLOAD_VALIDATION_FAILED'}}}
+export async function confirmImportAction(batchId:string){const access=await requireAccess('import.confirm'),db=await getLocalDatabase(),locked=(await db.query(`select 1 from app.import_staging_records s join app.reporting_periods rp on rp.period_code=s.parsed_period_code left join app.organizational_units u on u.code=s.parsed_unit_code join app.period_scope_locks l on l.reporting_period_id=rp.id and l.reporting_scope=s.parsed_scope and l.unit_id is not distinct from case when s.parsed_scope='UNIT' then u.id else null end where s.import_batch_id=$1 limit 1`,[batchId])).rows.length;if(locked)return{ok:false,code:'PERIOD_LOCKED'};return confirmImport(db,{batchId,actorProfileId:access.identity.profileId})}
+export async function cancelImportAction(batchId:string){const access=await requireAccess('import.review');return cancelImport(await getLocalDatabase(),batchId,access.identity.profileId)}
+export async function importHistoryAction(){await requireAccess('import.review');return importHistory(await getLocalDatabase())}

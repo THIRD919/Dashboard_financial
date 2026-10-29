@@ -1,0 +1,262 @@
+{
+  "source": {
+    "workbook": "Vet_CMU_Interactive_Financial_Dashboard.xlsx",
+    "sha256": "6bec9f446b926fdaea8c19a4ba00aa171f616f6c20aad70885d19934d828b77e",
+    "extractedAt": "2026-08-10T15:04:26.288029+00:00",
+    "method": "OOXML cached values read by scripts/extract-excel-prototype-data.py",
+    "lastRefreshed": "2026-07-13"
+  },
+  "periods": [
+    {
+      "label": "Q2/69",
+      "fiscalYearLabel": "69",
+      "quarterLabel": "Q2",
+      "faculty": {
+        "revenue": 73281544.0,
+        "expense": 57694327.0,
+        "operatingResult": 15587217.0,
+        "currentAssets": 97630000.0,
+        "nonCurrentAssets": 630450000.0,
+        "liabilities": 276820000.0,
+        "financialLiquidity": 0.3526840546203309
+      }
+    },
+    {
+      "label": "Q1/69",
+      "fiscalYearLabel": "69",
+      "quarterLabel": "Q1",
+      "faculty": {
+        "revenue": 46683658.0,
+        "expense": 51712260.0,
+        "operatingResult": -5028602.0,
+        "currentAssets": 109300000.0,
+        "nonCurrentAssets": 606210000.0,
+        "liabilities": 258040000.0,
+        "financialLiquidity": 0.42357773988528913
+      }
+    },
+    {
+      "label": "Q4/68",
+      "fiscalYearLabel": "68",
+      "quarterLabel": "Q4",
+      "faculty": {
+        "revenue": 131408229.0,
+        "expense": 127865373.0,
+        "operatingResult": 3542856.0,
+        "currentAssets": 133880000.0,
+        "nonCurrentAssets": 597120000.0,
+        "liabilities": 268960000.0,
+        "financialLiquidity": 0.49776918500892325
+      }
+    },
+    {
+      "label": "Q3/68",
+      "fiscalYearLabel": "68",
+      "quarterLabel": "Q3",
+      "faculty": {
+        "revenue": 90260853.0,
+        "expense": 84229576.0,
+        "operatingResult": 6031277.0,
+        "currentAssets": 91620000.0,
+        "nonCurrentAssets": 597150000.0,
+        "liabilities": 260360000.0,
+        "financialLiquidity": 0.35189737286833617
+      }
+    }
+  ],
+  "availablePeriodOrder": [
+    "Q3/68",
+    "Q4/68",
+    "Q1/69",
+    "Q2/69"
+  ],
+  "unitDataPeriod": "Q2/69",
+  "units": [
+    {
+      "code": "VET-OFFICE",
+      "nameTh": "สำนักงาน คณะสัตวแพทยศาสตร์",
+      "nameEn": "Faculty of Veterinary Medicine Office",
+      "translationStatus": "PROVISIONAL",
+      "periodLabel": "Q2/69",
+      "revenue": 18542474.0,
+      "expense": 14354999.0,
+      "operatingResult": 4187475.0,
+      "revenueBudget": 28518000.0,
+      "revenueActual": 18542474.0,
+      "expenseBudget": 29638800.0,
+      "expenseActual": 14354999.0
+    },
+    {
+      "code": "NOVEL",
+      "nameTh": "ศูนย์การเรียนรู้และส่งเสริมสุขภาพสัตว์ภาคเหนือ(NOVEL)",
+      "nameEn": "Northern Animal Health Learning and Promotion Center (NOVEL)",
+      "translationStatus": "PROVISIONAL",
+      "periodLabel": "Q2/69",
+      "revenue": 39787921.0,
+      "expense": 31034819.0,
+      "operatingResult": 8753102.0,
+      "revenueBudget": 114900000.0,
+      "revenueActual": 39787921.0,
+      "expenseBudget": 110400000.0,
+      "expenseActual": 31034819.0
+    },
+    {
+      "code": "MAE-ON-AH",
+      "nameTh": "(โรงพยาบาลสัตว์แม่ออน)",
+      "nameEn": "Mae On Animal Hospital",
+      "translationStatus": "PROVISIONAL",
+      "periodLabel": "Q2/69",
+      "revenue": 1762983.0,
+      "expense": 1511583.0,
+      "operatingResult": 251400.0,
+      "revenueBudget": 3449600.0,
+      "revenueActual": 1762983.0,
+      "expenseBudget": 3200000.0,
+      "expenseActual": 1511583.0
+    },
+    {
+      "code": "LARGE-ANIMAL-HOSP",
+      "nameTh": "โรงพยาบาลสัตว์ใหญ่และปศุสัตว์",
+      "nameEn": "Large Animal and Livestock Hospital",
+      "translationStatus": "PROVISIONAL",
+      "periodLabel": "Q2/69",
+      "revenue": 1008535.0,
+      "expense": 1002935.0,
+      "operatingResult": 5600.0,
+      "revenueBudget": 2176700.0,
+      "revenueActual": 1008535.0,
+      "expenseBudget": 2100000.0,
+      "expenseActual": 1002935.0
+    },
+    {
+      "code": "ELEPHANT-WILDLIFE",
+      "nameTh": "ศูนย์สุขภาพช้างและสัตว์ป่า",
+      "nameEn": "Elephant and Wildlife Health Center",
+      "translationStatus": "PROVISIONAL",
+      "periodLabel": "Q2/69",
+      "revenue": 1044605.0,
+      "expense": 396333.0,
+      "operatingResult": 648272.0,
+      "revenueBudget": 2173300.0,
+      "revenueActual": 1044605.0,
+      "expenseBudget": 1426100.0,
+      "expenseActual": 396333.0
+    },
+    {
+      "code": "VET-DIAG-INNOV",
+      "nameTh": "ศูนย์ชันเวชศาสตร์ชันสูตรและนวัตกรรมด้านสุขภาพสัตว์",
+      "nameEn": "Veterinary Diagnostic and Animal Health Innovation Center",
+      "translationStatus": "PROVISIONAL",
+      "periodLabel": "Q2/69",
+      "revenue": 2741058.0,
+      "expense": 2740822.0,
+      "operatingResult": 236.0,
+      "revenueBudget": 7074000.0,
+      "revenueActual": 2741058.0,
+      "expenseBudget": 6366600.0,
+      "expenseActual": 2740822.0
+    },
+    {
+      "code": "FELINE-COE",
+      "nameTh": "ศูนย์ความเป็นเลิศด้านเวชศาสตร์แมว",
+      "nameEn": "Center of Excellence in Feline Medicine",
+      "translationStatus": "PROVISIONAL",
+      "periodLabel": "Q2/69",
+      "revenue": 0.0,
+      "expense": 0.0,
+      "operatingResult": 0.0,
+      "revenueBudget": 0.0,
+      "revenueActual": 0.0,
+      "expenseBudget": 0.0,
+      "expenseActual": 0.0
+    },
+    {
+      "code": "PET-CMU",
+      "nameTh": "Pet CMU (กลุ่มงานบ่มเพาะวิสาหกิจทางสัตวแพทย์)",
+      "nameEn": "Pet CMU (Veterinary Enterprise Incubation Group)",
+      "translationStatus": "PROVISIONAL",
+      "periodLabel": "Q2/69",
+      "revenue": 7351957.0,
+      "expense": 4155836.0,
+      "operatingResult": 3196121.0,
+      "revenueBudget": 7959800.0,
+      "revenueActual": 7351957.0,
+      "expenseBudget": 7163800.0,
+      "expenseActual": 4155836.0
+    },
+    {
+      "code": "AP-VPH-FS",
+      "nameTh": "ศูนย์สัตวแพทย์สาธารณสุขและอาหารปลอดภัยเอเชียแปซิฟิก",
+      "nameEn": "Asia-Pacific Veterinary Public Health and Food Safety Center",
+      "translationStatus": "PROVISIONAL",
+      "periodLabel": "Q2/69",
+      "revenue": 11985.0,
+      "expense": 189641.0,
+      "operatingResult": -177656.0,
+      "revenueBudget": 526500.0,
+      "revenueActual": 11985.0,
+      "expenseBudget": 500000.0,
+      "expenseActual": 189641.0
+    },
+    {
+      "code": "PODD",
+      "nameTh": "ศูนย์เฝ้าระวังสุขภาพหนึ่งเดียว PODD",
+      "nameEn": "One Health Surveillance Center (PODD)",
+      "translationStatus": "PROVISIONAL",
+      "periodLabel": "Q2/69",
+      "revenue": 1029558.0,
+      "expense": 2307358.0,
+      "operatingResult": -1277800.0,
+      "revenueBudget": 4200000.0,
+      "revenueActual": 1029558.0,
+      "expenseBudget": 4000000.0,
+      "expenseActual": 2307358.0
+    },
+    {
+      "code": "SRIBUABAN-AHO",
+      "nameTh": "สำนักงานโรงพยาบาลสัตว์(ศรีบัวบาน)",
+      "nameEn": "Sribuaban Animal Hospital Office",
+      "translationStatus": "PROVISIONAL",
+      "periodLabel": "Q2/69",
+      "revenue": 0.0,
+      "expense": 0.0,
+      "operatingResult": 0.0,
+      "revenueBudget": 700000.0,
+      "revenueActual": 0.0,
+      "expenseBudget": 500000.0,
+      "expenseActual": 0.0
+    }
+  ],
+  "facultyBudget": {
+    "periodLabel": "Q2/69",
+    "budgetScope": "UNKNOWN",
+    "budgetScopeStatus": "FACULTY CONFIRMATION REQUIRED",
+    "revenueBudget": 171825100.0,
+    "revenueActual": 73281544.0,
+    "expenseBudget": 165565500.0,
+    "expenseActual": 57694327.0
+  },
+  "governmentBudget": {
+    "periodLabel": "Q2/69",
+    "budgetScope": "UNKNOWN",
+    "budgetScopeStatus": "FACULTY CONFIRMATION REQUIRED",
+    "budget": 207098179.0,
+    "actual": 89248624.0,
+    "categories": [
+      {
+        "code": "EQUIPMENT",
+        "nameTh": "ครุภัณฑ์",
+        "nameEn": "Equipment",
+        "budget": 119046379.0,
+        "actual": 60616531.0
+      },
+      {
+        "code": "CONSTRUCTION",
+        "nameTh": "สิ่งก่อสร้าง",
+        "nameEn": "Construction",
+        "budget": 88051800.0,
+        "actual": 28632093.0
+      }
+    ]
+  }
+}

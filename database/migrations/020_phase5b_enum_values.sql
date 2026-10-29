@@ -1,0 +1,9 @@
+alter type app.record_status add value if not exists 'UNDER_REVIEW';
+alter type app.record_status add value if not exists 'REVIEW_APPROVED';
+alter type app.record_status add value if not exists 'FINAL_APPROVED';
+alter type app.record_status add value if not exists 'CORRECTION_REQUESTED';
+alter type app.record_status add value if not exists 'RETURNED_FOR_CORRECTION';
+alter type app.record_status add value if not exists 'ADJUSTMENT_DRAFT';
+alter type app.record_status add value if not exists 'ADJUSTMENT_SUBMITTED';
+alter type app.record_status add value if not exists 'REVERSED';
+alter type app.record_status add value if not exists 'SUPERSEDED';

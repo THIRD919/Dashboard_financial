@@ -1,0 +1,7 @@
+export type ImportProfileCode='VET_CMU_FINANCIAL_WORKBOOK_V1'|'GENERIC_PERIODIC_FINANCIAL_TEMPLATE_V1';
+export type DuplicateStatus='NEW'|'EXACT_DUPLICATE'|'POTENTIAL_DUPLICATE'|'CONFLICT';
+export type ImportSeverity='ERROR'|'WARNING'|'INFO';
+export type ParsedImportFact={sourceSheet:string;sourceRow:number;sourceColumn:string;sourceCell:string;sourceLabel:string;rawValue:unknown;scope:string;periodCode:string;unitCode:string|null;metricCode:string;categoryCode?:string|null;budgetScope?:string|null;amount:unknown;notes?:string;sourceReference?:string};
+export type ImportIssue={severity:ImportSeverity;code:string;field?:string;messageTh:string;messageEn:string};
+export type ImportPreviewRow=ParsedImportFact&{id:string;amountNormalized:string|null;validationStatus:'VALID'|'WARNING'|'ERROR';mappingStatus:string;duplicateStatus:DuplicateStatus;issues:ImportIssue[];existingAmount?:string|null};
+export type ImportPreview={batchId:string;fileName:string;fileHash:string;profileCode:ImportProfileCode;duplicateFile:boolean;previousImport?:{date:string;status:string;user:string|null};status:string;counts:{records:number;valid:number;warnings:number;errors:number;duplicates:number;conflicts:number};rows:ImportPreviewRow[];financialSummary:Array<{scope:string;period:string;unit:string|null;revenue:string;expense:string;operatingResult:string}>;reconciliation:Array<{period:string;metric:string;facultyTotal:string;unitSum:string;difference:string;differencePercent:number|null;status:string}>;canConfirm:boolean};

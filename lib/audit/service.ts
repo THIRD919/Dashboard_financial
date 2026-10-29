@@ -1,0 +1,3 @@
+import type {SqlClient} from "../database/client";
+export type AuditAction='CREATE'|'UPDATE'|'UPDATE_DRAFT'|'DELETE_DRAFT'|'ADJUST'|'REVERSE'|'SUBMIT'|'APPROVE'|'REJECT'|'LOCK'|'IMPORT'|'PERMISSION_CHANGE'|'CONFIG_CHANGE';
+export async function appendAudit(db:SqlClient,event:{actorProfileId?:string;action:AuditAction;entityType:string;entityId?:string;oldValues?:unknown;newValues?:unknown;metadata?:unknown}){await db.query('insert into app.audit_logs(actor_profile_id,action,entity_type,entity_id,old_values,new_values,metadata) values($1,$2,$3,$4,$5::jsonb,$6::jsonb,$7::jsonb)',[event.actorProfileId??null,event.action,event.entityType,event.entityId??null,JSON.stringify(event.oldValues??null),JSON.stringify(event.newValues??null),JSON.stringify(event.metadata??{})])}

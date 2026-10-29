@@ -1,0 +1,7 @@
+"use server";
+import {revalidatePath} from 'next/cache';import {requireAccess} from '@/lib/auth/access';import {getLocalDatabase} from '@/lib/database/local-pglite';import {finalApprove,lockScope,requestCorrection,returnSubmission} from '@/lib/workflow/service';
+const v=(f:FormData,k:string)=>String(f.get(k)??'');
+export async function finalApproveAction(locale:string,f:FormData){const a=await requireAccess('financial.final_approve');await finalApprove(await getLocalDatabase(),{actorProfileId:a.identity.profileId,recordId:v(f,'recordId'),comment:v(f,'comment')});revalidatePath(`/${locale}/approval`)}
+export async function finalReturnAction(locale:string,f:FormData){const a=await requireAccess('financial.final_reject');await returnSubmission(await getLocalDatabase(),{actorProfileId:a.identity.profileId,recordId:v(f,'recordId'),reason:v(f,'reason'),stage:'FINAL'});revalidatePath(`/${locale}/approval`)}
+export async function lockAction(locale:string,f:FormData){const a=await requireAccess('period.lock');await lockScope(await getLocalDatabase(),{actorProfileId:a.identity.profileId,recordId:v(f,'recordId'),comment:v(f,'comment')});revalidatePath(`/${locale}/approval`)}
+export async function correctionRequestAction(locale:string,f:FormData){const a=await requireAccess('financial.request_correction');await requestCorrection(await getLocalDatabase(),{actorProfileId:a.identity.profileId,recordId:v(f,'recordId'),reason:v(f,'reason'),type:v(f,'type') as 'ADJUSTMENT'|'REVERSAL'|'TO_BE_DETERMINED'});revalidatePath(`/${locale}/approval`)}

@@ -1,0 +1,7 @@
+export type Locale = "th" | "en";
+export type Faculty = { revenue:number; expense:number; operatingResult:number; currentAssets:number; nonCurrentAssets:number|null; liabilities:number; financialLiquidity:number };
+export type Period = { label:string; fiscalYearLabel:string; quarterLabel:string; faculty:Faculty; facultyAvailable?:boolean };
+export type Unit = { code:string; nameTh:string; nameEn:string; translationStatus:string; periodLabel:string; revenue:number; expense:number; operatingResult:number; currentAssets?:number|null; liabilities?:number|null; financialLiquidity?:number|null; revenueBudget:number; revenueActual:number; expenseBudget:number; expenseActual:number; budgetAvailable?:boolean };
+export type UnitOption = {code:string;nameTh:string;nameEn:string;translationStatus:string};
+export type BudgetScope="ANNUAL"|"PERIOD"|"UNKNOWN";
+export type PrototypeData = { source:{workbook:string;sha256:string;extractedAt:string;method:string;lastRefreshed:string}; periods:Period[]; availablePeriodOrder:string[]; unitDataPeriod:string; unitOptions?:UnitOption[]; units:Unit[]; unitPeriods?:Unit[]; facultyBudget:{periodLabel:string;budgetScope:BudgetScope;budgetScopeStatus:string;revenueBudget:number;revenueActual:number;expenseBudget:number;expenseActual:number;available?:boolean}; governmentBudget:{periodLabel:string;budgetScope:BudgetScope;budgetScopeStatus:string;budget:number;actual:number;categories:{code:string;nameTh:string;nameEn:string;budget:number;actual:number}[]} };

@@ -1,0 +1,20 @@
+import assert from 'node:assert/strict';
+import {PGlite} from '@electric-sql/pglite';
+import {pgcrypto} from '@electric-sql/pglite/contrib/pgcrypto';
+import {migrate} from '../scripts/check-database-migrations.mjs';
+import {savePeriodicEntry} from '../lib/data-entry/service.ts';
+const db=new PGlite({extensions:{pgcrypto}});await migrate(db,{demo:true});
+const OFFICE='10000000-0000-0000-0000-000000000001',EXEC='10000000-0000-0000-0000-000000000003',ADMIN='10000000-0000-0000-0000-000000000004',VIEWER='10000000-0000-0000-0000-000000000005';
+async function as(id,sql){await db.exec(`set app.current_profile_id='${id}'`);return (await db.query(sql)).rows[0]}
+assert.equal((await as(OFFICE,`select app.has_permission('financial.create') allowed`)).allowed,true);
+assert.equal((await as(OFFICE,`select app.has_permission('users.manage') allowed`)).allowed,false);
+assert.equal((await as(EXEC,`select app.has_permission('financial.view') read,app.has_permission('financial.create') write`)).read,true);
+assert.equal((await as(EXEC,`select app.has_permission('financial.view') read,app.has_permission('financial.create') write`)).write,false);
+assert.equal((await as(VIEWER,`select app.has_permission('financial.view') read,app.has_permission('financial.create') write`)).write,false);
+assert.equal((await as(ADMIN,`select app.has_permission('users.manage') allowed`)).allowed,true);
+assert.equal((await as(OFFICE,`select app.can_access_scope('UNIT',(select id from app.organizational_units where code='VET-OFFICE'),true) allowed`)).allowed,true);
+assert.equal((await as(OFFICE,`select app.can_access_scope('UNIT',(select id from app.organizational_units where code='NOVEL'),true) allowed`)).allowed,false);
+assert.equal((await as(OFFICE,`select app.can_access_scope('FACULTY',null,true) allowed`)).allowed,false);
+const attack=await savePeriodicEntry(db,{demoProfileId:OFFICE,reportingScope:'UNIT',unitCode:'NOVEL',periodCode:'Q1-69',actualRevenue:'1.00',sourceReference:'TEST_ONLY_ATTACK',status:'DRAFT'});assert.equal(attack.code,'UNIT_NOT_AUTHORIZED');
+assert.equal((await db.query(`select account_status from app.profiles where id=$1`,[OFFICE])).rows[0].account_status,'ACTIVE');
+console.log('Phase 5A auth tests passed: role capabilities, active profiles, Unit/Faculty scope, admin boundary, executive/viewer read-only, and crafted cross-Unit denial.');await db.close();
