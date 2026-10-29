@@ -1,0 +1,73 @@
+services:
+
+  db-dev:
+    image: postgres:18
+    container_name: test-ton-api_dev
+    ports:
+      - "5400:5432"
+
+    env_file:
+      - .env
+
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      TZ: ${TZ}
+
+    volumes:
+      - pgdata_v18:/var/lib/postgresql
+      - ./docker/postgres/initdb/dev:/docker-initdb.d
+      - ./docker/postgres/config/postgresql.conf:/etc/postgresql/postgresql.conf
+      - ./docker/postgres/config/pg_hba.conf:/etc/postgresql/pg_hba.conf
+
+    command: ["-c", "config_file=/etc/postgresql/postgresql.conf"]
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+    networks:
+      - test-ton-api-network
+
+  test-ton-api:
+    image: test-ton-api:1
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: test-ton-api
+
+    init: true
+    volumes:
+      - ./:/app
+      - /app/node_modules
+
+    command: ["bun", "run", "dev"]
+
+    restart: unless-stopped
+    ports:
+      - 3400:3000
+
+    healthcheck:
+      test:
+        - CMD
+        - bun
+        - -e
+        - 'const port = process.env.PORT_LOCAL || "3000"; fetch("http://127.0.0.1:" + port + "/test/api/health").then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))'
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+    networks:
+      - test-ton-api-network
+
+networks:
+  test-ton-api-network:
+    name: test-ton-api-network
+
+volumes:
+  pgdata_v18:
