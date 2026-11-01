@@ -1,0 +1,721 @@
+// แบบจำลอง Prisma ORM 7 ที่แปลงมาจาก database/schema.sql
+//
+// PostgreSQL ยังคงเป็นแหล่งข้อมูลหลักสำหรับคุณสมบัติฐานข้อมูลที่ Prisma
+// ไม่สามารถอธิบายได้ ได้แก่ extensions, CHECK constraints, partial/expression indexes,
+// นโยบาย RLS, ฟังก์ชัน security-definer และโหมด identity ของ audit_logs.id
+// คุณสมบัติเหล่านี้ยังต้องใช้ SQL migrations ใน database/migrations ต่อไป
+//
+// นโยบาย UUID: โปรเจกต์นี้ใช้ PostgreSQL 18 ดังนั้น primary key แบบ UUID รายการใหม่
+// จะใช้ uuidv7() ที่มีมาใน PostgreSQL โดย UUIDv7 เรียงลำดับตามเวลาและโดยทั่วไป
+// ช่วยให้ B-tree index มี locality ดีกว่า UUIDv4 แบบสุ่ม ส่วน UUID เดิมยังใช้งานได้ตามปกติ
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["app"]
+}
+
+// ---------------------------------------------------------------------------
+// Enum กลางของโดเมน
+// Enum เหล่านี้ป้องกันสถานะ workflow, scope, import, KPI และ audit ที่ไม่ถูกต้อง
+// ไม่ให้เข้าสู่ฐานข้อมูล และถูกนำไปใช้ร่วมกันใน models ด้านล่าง
+// ---------------------------------------------------------------------------
+
+/// ภาษาที่ผู้ใช้แต่ละคนเลือกใช้สำหรับหน้าจอและการสื่อสาร
+enum LanguageCode {
+  th
+  en
+
+  @@map("language_code")
+  @@schema("app")
+}
+
+/// แยกข้อมูลระดับคณะออกจากข้อมูลที่เป็นของหน่วยงานใดหน่วยงานหนึ่ง
+enum ReportingScope {
+  FACULTY
+  UNIT
+
+  @@map("reporting_scope")
+  @@schema("app")
+}
+
+/// วงจรสถานะการอนุมัติของรายการทางการเงิน
+enum RecordStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+  LOCKED
+
+  @@map("record_status")
+  @@schema("app")
+}
+
+/// แยกข้อมูลต้นฉบับออกจากรายการปรับปรุงและรายการกลับรายการที่ตรวจสอบย้อนหลังได้
+enum EntryType {
+  BASE
+  ADJUSTMENT
+  REVERSAL
+
+  @@map("entry_type")
+  @@schema("app")
+}
+
+/// ระบุแหล่งที่มาของข้อมูลเพื่อใช้ติดตามสายข้อมูลและตรวจสอบย้อนหลัง
+enum SourceType {
+  WEB_ENTRY
+  EXCEL_IMPORT
+  SYSTEM_DERIVED
+  MIGRATION
+
+  @@map("source_type")
+  @@schema("app")
+}
+
+/// สถานะการทำงานของชุดนำเข้าจากไฟล์สเปรดชีตที่อัปโหลด
+enum ImportStatus {
+  UPLOADED
+  VALIDATING
+  INVALID
+  READY
+  CONFIRMING
+  CONFIRMED
+  FAILED
+  ROLLED_BACK
+
+  @@map("import_status")
+  @@schema("app")
+}
+
+/// ระบุว่าปัญหาจากการนำเข้าต้องหยุดการยืนยัน หรือเป็นเพียงคำเตือน
+enum IssueSeverity {
+  ERROR
+  WARNING
+
+  @@map("issue_severity")
+  @@schema("app")
+}
+
+/// ผลการเปรียบเทียบยอดรวมระดับคณะกับผลรวมของทุกหน่วยงาน
+enum ReconciliationStatus {
+  MATCHED
+  WITHIN_TOLERANCE
+  REVIEW_REQUIRED
+  RESOLVED
+
+  @@map("reconciliation_status")
+  @@schema("app")
+}
+
+/// ระบุว่า KPI เป็นข้อมูลต้นทาง ค่าที่คำนวณ หรือค่าที่กำหนดตามหลักธรรมาภิบาล
+enum KpiKind {
+  SOURCE
+  DERIVED
+  CONFIGURED
+
+  @@map("kpi_kind")
+  @@schema("app")
+}
+
+/// หน่วยวัดที่รองรับเพื่อให้การแสดงผล metric และ KPI สอดคล้องกัน
+enum KpiUnit {
+  THB
+  PERCENT
+  RATIO
+  COUNT
+
+  @@map("kpi_unit")
+  @@schema("app")
+}
+
+/// ระบุแนวทางการตีความเมื่อค่า KPI สูงขึ้นหรือต่ำลง
+enum KpiDirection {
+  HIGHER_IS_BETTER
+  LOWER_IS_BETTER
+  NEUTRAL
+  CONFIGURABLE
+
+  @@map("kpi_direction")
+  @@schema("app")
+}
+
+/// การดำเนินการทางธุรกิจที่บันทึกไว้ในประวัติการตรวจสอบซึ่งแก้ไขย้อนหลังไม่ได้
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  SUBMIT
+  APPROVE
+  REJECT
+  LOCK
+  UNLOCK
+  IMPORT
+  ROLLBACK
+  PERMISSION_CHANGE
+  THRESHOLD_CHANGE
+
+  @@map("audit_action")
+  @@schema("app")
+}
+
+// ---------------------------------------------------------------------------
+// ข้อมูลตัวตนและการกำหนดสิทธิ์
+// Profile เป็นข้อมูลตัวตนส่วนกลาง โดย Role มอบความสามารถให้ผู้ใช้ ส่วนสิทธิ์หน่วยงาน
+// จะจำกัดความสามารถนั้นให้ใช้กับข้อมูลทั้งคณะหรือเฉพาะหน่วยงาน
+// ---------------------------------------------------------------------------
+
+/// ตัวตนภายในแอปพลิเคชันที่เชื่อมกับผู้ใช้จากระบบยืนยันตัวตนภายนอก
+/// Schema ส่วนต่าง ๆ อ้างอิงข้อมูลนี้ในฐานะผู้สร้าง ผู้อนุมัติ ผู้ตรวจทาน
+/// ผู้มอบสิทธิ์ หรือผู้ดำเนินการใน audit เพื่อให้ระบุผู้รับผิดชอบได้
+model Profile {
+  id                String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  authUserId        String    @unique @map("auth_user_id") @db.Uuid
+  email             String?
+  displayName       String?   @map("display_name")
+  preferredLanguage LanguageCode @default(th) @map("preferred_language")
+  isActive          Boolean   @default(true) @map("is_active")
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  userRoles             UserRole[]       @relation("ProfileRoles")
+  rolesGranted          UserRole[]       @relation("RoleGrantedBy")
+  unitAccess            UserUnitAccess[] @relation("ProfileUnitAccess")
+  unitAccessGranted     UserUnitAccess[] @relation("UnitAccessGrantedBy")
+  periodsLocked         ReportingPeriod[]
+  batchesUploaded       ImportBatch[]    @relation("BatchUploadedBy")
+  batchesConfirmed      ImportBatch[]    @relation("BatchConfirmedBy")
+  issuesResolved        ImportIssue[]
+  recordsSubmitted      FinancialRecord[] @relation("RecordSubmittedBy")
+  recordsApproved       FinancialRecord[] @relation("RecordApprovedBy")
+  recordsCreated        FinancialRecord[] @relation("RecordCreatedBy")
+  recordsUpdated        FinancialRecord[] @relation("RecordUpdatedBy")
+  recordsDeleted        FinancialRecord[] @relation("RecordDeletedBy")
+  rulesApproved         ReconciliationRule[]
+  reconciliationsReviewed Reconciliation[]
+  kpisApproved          KpiDefinition[]
+  thresholdsApproved    KpiThreshold[]
+  settingsUpdated       SystemSetting[]
+  auditLogs             AuditLog[]
+
+  @@map("profiles")
+  @@schema("app")
+}
+
+/// กลุ่มสิทธิ์ที่มีชื่อและถูกกำหนดให้ Profile ผ่าน UserRole
+model Role {
+  id          String  @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  code        String  @unique
+  nameTh      String  @map("name_th")
+  nameEn      String  @map("name_en")
+  description String?
+  isSystem    Boolean @default(false) @map("is_system")
+  active      Boolean @default(true)
+
+  permissions RolePermission[]
+  users       UserRole[]
+
+  @@map("roles")
+  @@schema("app")
+}
+
+/// หน่วยสิทธิ์ย่อยที่สุด เช่น การดูหรืออนุมัติข้อมูลทางการเงิน
+model Permission {
+  id          String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  code        String @unique
+  description String
+  roles       RolePermission[]
+
+  @@map("permissions")
+  @@schema("app")
+}
+
+/// ตารางเชื่อมแบบ many-to-many โดยหนึ่ง Role มีหลาย Permission และกลับกัน
+model RolePermission {
+  roleId       String @map("role_id") @db.Uuid
+  permissionId String @map("permission_id") @db.Uuid
+  role         Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+  @@schema("app")
+}
+
+/// ตารางเชื่อมแบบ many-to-many สำหรับกำหนด Role ให้ Profile พร้อมข้อมูลผู้มอบสิทธิ์และวันหมดอายุ
+model UserRole {
+  profileId String    @map("profile_id") @db.Uuid
+  roleId    String    @map("role_id") @db.Uuid
+  grantedBy String?   @map("granted_by") @db.Uuid
+  grantedAt DateTime  @default(now()) @map("granted_at") @db.Timestamptz(6)
+  expiresAt DateTime? @map("expires_at") @db.Timestamptz(6)
+  profile   Profile   @relation("ProfileRoles", fields: [profileId], references: [id], onDelete: Cascade)
+  role      Role      @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  grantor   Profile?  @relation("RoleGrantedBy", fields: [grantedBy], references: [id])
+
+  @@id([profileId, roleId])
+  @@map("user_roles")
+  @@schema("app")
+}
+
+// ---------------------------------------------------------------------------
+// โครงสร้างองค์กรและขอบเขตข้อมูล
+// หน่วยงานมีโครงสร้างแบบลำดับชั้น Alias ใช้จับคู่ชื่อจากระบบภายนอก และ UserUnitAccess
+// เชื่อมสิทธิ์อ่าน/เขียนของ Profile กับระดับคณะหรือหน่วยงานที่กำหนด
+// ---------------------------------------------------------------------------
+
+/// โครงสร้างต้นไม้ของหน่วยงานในคณะ ใช้ระบุเจ้าของและขอบเขตของข้อมูลทางการเงิน
+model OrganizationalUnit {
+  id           String  @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  code         String  @unique
+  nameTh       String  @map("name_th")
+  nameEn       String? @map("name_en")
+  parentUnitId String? @map("parent_unit_id") @db.Uuid
+  active       Boolean @default(true)
+  activeFrom   DateTime? @map("active_from") @db.Date
+  activeTo     DateTime? @map("active_to") @db.Date
+  metadata     Json    @default("{}") @db.JsonB
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+  parent       OrganizationalUnit? @relation("UnitHierarchy", fields: [parentUnitId], references: [id], onDelete: Restrict)
+  children     OrganizationalUnit[] @relation("UnitHierarchy")
+  aliases      OrganizationalUnitAlias[]
+  userAccess   UserUnitAccess[]
+  records      FinancialRecord[]
+  auditLogs    AuditLog[]
+
+  @@map("organizational_units")
+  @@schema("app")
+}
+
+/// จับคู่ชื่อจาก Excel หรือระบบต้นทางอื่นกับหน่วยงานมาตรฐานเพียงรายการเดียว
+model OrganizationalUnitAlias {
+  id             String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  unitId         String @map("unit_id") @db.Uuid
+  sourceSystem   String @map("source_system")
+  sourceName     String @map("source_name")
+  normalizedName String? @map("normalized_name")
+  unit           OrganizationalUnit @relation(fields: [unitId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceSystem, sourceName])
+  @@map("organizational_unit_aliases")
+  @@schema("app")
+}
+
+/// เชื่อม Profile กับขอบเขตคณะ/หน่วยงานและระดับการเข้าถึงที่ได้รับอนุญาต
+model UserUnitAccess {
+  id          String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  profileId   String @map("profile_id") @db.Uuid
+  accessScope ReportingScope @map("access_scope")
+  unitId      String? @map("unit_id") @db.Uuid
+  canRead     Boolean @default(true) @map("can_read")
+  canWrite    Boolean @default(false) @map("can_write")
+  grantedBy   String? @map("granted_by") @db.Uuid
+  grantedAt   DateTime @default(now()) @map("granted_at") @db.Timestamptz(6)
+  expiresAt   DateTime? @map("expires_at") @db.Timestamptz(6)
+  profile     Profile @relation("ProfileUnitAccess", fields: [profileId], references: [id], onDelete: Cascade)
+  unit        OrganizationalUnit? @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  grantor     Profile? @relation("UnitAccessGrantedBy", fields: [grantedBy], references: [id])
+
+  // SQL ใช้ UNIQUE NULLS NOT DISTINCT ซึ่ง Prisma ยังไม่สามารถอธิบายพฤติกรรมนี้ได้
+  @@unique([profileId, accessScope, unitId])
+  @@map("user_unit_access")
+  @@schema("app")
+}
+
+// ---------------------------------------------------------------------------
+// ข้อมูลหลักทางการเงิน
+// Period กำหนดปฏิทินรายงาน ส่วน Category และ Metric อธิบายความหมายของข้อมูล
+// ทางการเงินแต่ละรายการ โดย FinancialRecord จะอ้างอิงข้อมูลหลักทั้งสามส่วนนี้
+// ---------------------------------------------------------------------------
+
+/// ปฏิทินรายงานแบบลำดับชั้น รองรับปีงบประมาณ ไตรมาส เดือน และช่วงเวลาที่กำหนดเอง
+model ReportingPeriod {
+  id              String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  parentPeriodId  String? @map("parent_period_id") @db.Uuid
+  code            String @unique
+  periodType      String @map("period_type")
+  fiscalYearLabel String @map("fiscal_year_label")
+  quarterLabel    String? @map("quarter_label")
+  monthNumber     Int? @map("month_number") @db.SmallInt
+  nameTh          String @map("name_th")
+  nameEn          String? @map("name_en")
+  startDate       DateTime? @map("start_date") @db.Date
+  endDate         DateTime? @map("end_date") @db.Date
+  displayOrder    Int @map("display_order")
+  active          Boolean @default(true)
+  isLocked        Boolean @default(false) @map("is_locked")
+  lockedAt        DateTime? @map("locked_at") @db.Timestamptz(6)
+  lockedBy        String? @map("locked_by") @db.Uuid
+  sourceLabel     String? @map("source_label")
+  parent          ReportingPeriod? @relation("PeriodHierarchy", fields: [parentPeriodId], references: [id], onDelete: Restrict)
+  children        ReportingPeriod[] @relation("PeriodHierarchy")
+  locker          Profile? @relation(fields: [lockedBy], references: [id])
+  records         FinancialRecord[]
+  reconciliations Reconciliation[]
+  auditLogs       AuditLog[]
+
+  @@map("reporting_periods")
+  @@schema("app")
+}
+
+/// หมวดหมู่แบบลำดับชั้น ใช้เมื่อ Metric ต้องแยกรายละเอียดในระดับหมวดหมู่
+model FinancialCategory {
+  id               String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  code             String @unique
+  nameTh           String @map("name_th")
+  nameEn           String? @map("name_en")
+  parentCategoryId String? @map("parent_category_id") @db.Uuid
+  active           Boolean @default(true)
+  parent           FinancialCategory? @relation("CategoryHierarchy", fields: [parentCategoryId], references: [id], onDelete: Restrict)
+  children         FinancialCategory[] @relation("CategoryHierarchy")
+  records          FinancialRecord[]
+
+  @@map("financial_categories")
+  @@schema("app")
+}
+
+/// กำหนดแนวคิดทางการเงินที่วัดผลได้ และเชื่อมรายการทางการเงินกับการกระทบยอด
+model FinancialMetric {
+  id            String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  code          String @unique
+  nameTh        String @map("name_th")
+  nameEn        String @map("name_en")
+  descriptionTh String? @map("description_th")
+  descriptionEn String? @map("description_en")
+  valueUnit     KpiUnit @map("value_unit")
+  metricGroup   String @map("metric_group")
+  isMonetary    Boolean @default(true) @map("is_monetary")
+  active        Boolean @default(true)
+  records       FinancialRecord[]
+  rules         ReconciliationRule[]
+  reconciliations Reconciliation[]
+
+  @@map("financial_metrics")
+  @@schema("app")
+}
+
+// ---------------------------------------------------------------------------
+// กระบวนการนำเข้าจากสเปรดชีต
+// ImportBatch ดูแลไฟล์ที่อัปโหลดหนึ่งไฟล์ แต่ละแถวจะพักใน staging ก่อนยืนยัน
+// ImportIssue อธิบายผลที่พบจากการตรวจสอบ และ ImportCommit ใช้ติดตามข้อมูลอย่างแม่นยำ
+// ตั้งแต่แถวใน staging ไปจนถึง FinancialRecord ปลายทาง
+// ---------------------------------------------------------------------------
+
+/// ไฟล์อัปโหลดหนึ่งไฟล์ พร้อมวงจรการตรวจสอบ ยืนยัน และย้อนกลับการนำเข้า
+model ImportBatch {
+  id                String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  originalFilename  String @map("original_filename")
+  storageObjectKey  String @map("storage_object_key")
+  fileSha256        String @map("file_sha256")
+  fileSizeBytes     BigInt @map("file_size_bytes")
+  templateVersion   String? @map("template_version")
+  status            ImportStatus @default(UPLOADED)
+  uploadedBy        String @map("uploaded_by") @db.Uuid
+  uploadedAt        DateTime @default(now()) @map("uploaded_at") @db.Timestamptz(6)
+  validationSummary Json @default("{}") @map("validation_summary") @db.JsonB
+  confirmedBy       String? @map("confirmed_by") @db.Uuid
+  confirmedAt       DateTime? @map("confirmed_at") @db.Timestamptz(6)
+  failureReason     String? @map("failure_reason")
+  rollbackOfBatchId String? @map("rollback_of_batch_id") @db.Uuid
+  uploader          Profile @relation("BatchUploadedBy", fields: [uploadedBy], references: [id])
+  confirmer         Profile? @relation("BatchConfirmedBy", fields: [confirmedBy], references: [id])
+  rollbackOf        ImportBatch? @relation("BatchRollback", fields: [rollbackOfBatchId], references: [id])
+  rollbacks         ImportBatch[] @relation("BatchRollback")
+  stagingRecords    ImportStagingRecord[]
+  issues            ImportIssue[]
+  financialRecords  FinancialRecord[]
+  commits           ImportCommit[]
+  reconciliations   Reconciliation[]
+  auditLogs         AuditLog[]
+
+  @@index([fileSha256, uploadedAt(sort: Desc)], map: "import_batches_hash_idx")
+  @@map("import_batches")
+  @@schema("app")
+}
+
+/// แถวข้อมูลต้นทางที่แปลงแล้วและพักไว้นอก ledger จนกว่าจะผ่านการตรวจสอบ
+model ImportStagingRecord {
+  id                   String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  importBatchId        String @map("import_batch_id") @db.Uuid
+  rowNumber            Int @map("row_number")
+  worksheetName        String? @map("worksheet_name")
+  sourceCellRange      String? @map("source_cell_range")
+  rawPayload           Json @map("raw_payload") @db.JsonB
+  parsedScope          ReportingScope? @map("parsed_scope")
+  parsedPeriodCode     String? @map("parsed_period_code")
+  parsedUnitCode       String? @map("parsed_unit_code")
+  parsedMetricCode     String? @map("parsed_metric_code")
+  parsedCategoryCode   String? @map("parsed_category_code")
+  parsedAmount         Decimal? @map("parsed_amount") @db.Decimal(20, 2)
+  normalizedPayload    Json? @map("normalized_payload") @db.JsonB
+  validationStatus     String @default("PENDING") @map("validation_status")
+  duplicateFingerprint String? @map("duplicate_fingerprint")
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  batch                ImportBatch @relation(fields: [importBatchId], references: [id], onDelete: Cascade)
+  issues               ImportIssue[]
+  commits              ImportCommit[]
+
+  @@unique([importBatchId, rowNumber, worksheetName, sourceCellRange])
+  @@map("import_staging_records")
+  @@schema("app")
+}
+
+/// คำเตือนหรือข้อผิดพลาดจากการตรวจสอบ ซึ่งผูกกับชุดนำเข้าและอาจระบุแถวที่เกี่ยวข้อง
+model ImportIssue {
+  id              String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  importBatchId   String @map("import_batch_id") @db.Uuid
+  stagingRecordId String? @map("staging_record_id") @db.Uuid
+  severity        IssueSeverity
+  code            String
+  fieldName       String? @map("field_name")
+  messageTh       String @map("message_th")
+  messageEn       String @map("message_en")
+  details         Json @default("{}") @db.JsonB
+  resolvedAt      DateTime? @map("resolved_at") @db.Timestamptz(6)
+  resolvedBy      String? @map("resolved_by") @db.Uuid
+  resolutionNote  String? @map("resolution_note")
+  batch           ImportBatch @relation(fields: [importBatchId], references: [id], onDelete: Cascade)
+  stagingRecord   ImportStagingRecord? @relation(fields: [stagingRecordId], references: [id], onDelete: Cascade)
+  resolver        Profile? @relation(fields: [resolvedBy], references: [id])
+
+  @@map("import_issues")
+  @@schema("app")
+}
+
+// ---------------------------------------------------------------------------
+// บัญชีรายการทางการเงินหลัก
+// FinancialRecord เป็นข้อมูลธุรกิจส่วนกลางที่เชื่อมช่วงเวลา ขอบเขต/หน่วยงาน Metric
+// หมวดหมู่ที่อาจมีหรือไม่มีก็ได้ ชุดข้อมูลต้นทาง และ Profile ของผู้รับผิดชอบ
+// การแก้ไขจะเพิ่มเป็นรายการใหม่ผ่าน self-relation แทนการเขียนทับประวัติที่อนุมัติแล้ว
+// ---------------------------------------------------------------------------
+
+/// รายการทางการเงินแบบมีเวอร์ชันและเพิ่มต่อท้ายเท่านั้น พร้อมสายข้อมูลของ workflow ที่ครบถ้วน
+model FinancialRecord {
+  id                    String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  recordGroupId         String @default(dbgenerated("uuidv7()")) @map("record_group_id") @db.Uuid
+  versionNo             Int @default(1) @map("version_no")
+  isCurrent             Boolean @default(true) @map("is_current")
+  reportingScope        ReportingScope @map("reporting_scope")
+  reportingPeriodId     String @map("reporting_period_id") @db.Uuid
+  unitId                String? @map("unit_id") @db.Uuid
+  metricId              String @map("metric_id") @db.Uuid
+  categoryId            String? @map("category_id") @db.Uuid
+  entryType             EntryType @default(BASE) @map("entry_type")
+  amount                Decimal @db.Decimal(20, 2)
+  currencyCode          String @default("THB") @map("currency_code") @db.Char(3)
+  adjustmentReference   String? @map("adjustment_reference")
+  adjustsRecordId       String? @map("adjusts_record_id") @db.Uuid
+  sourceType            SourceType @map("source_type")
+  sourceReference       String? @map("source_reference")
+  importBatchId         String? @map("import_batch_id") @db.Uuid
+  notes                 String?
+  status                RecordStatus @default(DRAFT)
+  rejectionReason       String? @map("rejection_reason")
+  submittedBy           String? @map("submitted_by") @db.Uuid
+  submittedAt           DateTime? @map("submitted_at") @db.Timestamptz(6)
+  approvedBy            String? @map("approved_by") @db.Uuid
+  approvedAt            DateTime? @map("approved_at") @db.Timestamptz(6)
+  createdBy             String @map("created_by") @db.Uuid
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedBy             String? @map("updated_by") @db.Uuid
+  updatedAt             DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+  deletedAt             DateTime? @map("deleted_at") @db.Timestamptz(6)
+  deletedBy             String? @map("deleted_by") @db.Uuid
+  deleteReason          String? @map("delete_reason")
+  period                ReportingPeriod @relation(fields: [reportingPeriodId], references: [id], onDelete: Restrict)
+  unit                  OrganizationalUnit? @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  metric                FinancialMetric @relation(fields: [metricId], references: [id], onDelete: Restrict)
+  category              FinancialCategory? @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  adjusts               FinancialRecord? @relation("RecordAdjustments", fields: [adjustsRecordId], references: [id], onDelete: Restrict)
+  adjustments           FinancialRecord[] @relation("RecordAdjustments")
+  importBatch           ImportBatch? @relation(fields: [importBatchId], references: [id], onDelete: Restrict)
+  submitter             Profile? @relation("RecordSubmittedBy", fields: [submittedBy], references: [id])
+  approver              Profile? @relation("RecordApprovedBy", fields: [approvedBy], references: [id])
+  creator               Profile @relation("RecordCreatedBy", fields: [createdBy], references: [id])
+  updater               Profile? @relation("RecordUpdatedBy", fields: [updatedBy], references: [id])
+  deleter               Profile? @relation("RecordDeletedBy", fields: [deletedBy], references: [id])
+  commits               ImportCommit[]
+
+  @@unique([recordGroupId, versionNo])
+  // Partial indexes จาก SQL จำนวนสามรายการจะเก็บไว้ใน migrations เท่านั้นโดยตั้งใจ
+  @@map("financial_records")
+  @@schema("app")
+}
+
+/// การจับคู่ที่แก้ไขไม่ได้ เพื่อยืนยันว่าแถวใน staging ใดสร้างรายการใน ledger รายการใด
+model ImportCommit {
+  id                String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  importBatchId     String @map("import_batch_id") @db.Uuid
+  stagingRecordId   String @map("staging_record_id") @db.Uuid
+  financialRecordId String @map("financial_record_id") @db.Uuid
+  committedAt       DateTime @default(now()) @map("committed_at") @db.Timestamptz(6)
+  batch             ImportBatch @relation(fields: [importBatchId], references: [id], onDelete: Restrict)
+  stagingRecord     ImportStagingRecord @relation(fields: [stagingRecordId], references: [id], onDelete: Restrict)
+  financialRecord   FinancialRecord @relation(fields: [financialRecordId], references: [id], onDelete: Restrict)
+
+  @@unique([importBatchId, stagingRecordId, financialRecordId])
+  @@map("import_commits")
+  @@schema("app")
+}
+
+// ---------------------------------------------------------------------------
+// การกระทบยอด
+// Rule กำหนดค่าความคลาดเคลื่อนที่อนุมัติแล้วของแต่ละ Metric ส่วน Reconciliation
+// เก็บผลเปรียบเทียบระดับคณะกับหน่วยงานตามช่วงเวลา Metric และเวอร์ชันการคำนวณ
+// ---------------------------------------------------------------------------
+
+/// การกำหนดค่าความคลาดเคลื่อนของ Metric หนึ่งรายการ โดยมีช่วงวันที่มีผลบังคับใช้
+model ReconciliationRule {
+  id                  String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  metricId            String @map("metric_id") @db.Uuid
+  absoluteTolerance   Decimal? @map("absolute_tolerance") @db.Decimal(20, 2)
+  percentageTolerance Decimal? @map("percentage_tolerance") @db.Decimal(12, 8)
+  effectiveFrom       DateTime @map("effective_from") @db.Date
+  effectiveTo         DateTime? @map("effective_to") @db.Date
+  active              Boolean @default(false)
+  approvedBy          String? @map("approved_by") @db.Uuid
+  approvedAt          DateTime? @map("approved_at") @db.Timestamptz(6)
+  notes               String?
+  metric              FinancialMetric @relation(fields: [metricId], references: [id], onDelete: Restrict)
+  approver            Profile? @relation(fields: [approvedBy], references: [id])
+
+  @@map("reconciliation_rules")
+  @@schema("app")
+}
+
+/// ผลการเปรียบเทียบยอดรวมระดับคณะกับผลรวมของหน่วยงานทั้งหมด
+model Reconciliation {
+  id                    String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  reportingPeriodId     String @map("reporting_period_id") @db.Uuid
+  metricId              String @map("metric_id") @db.Uuid
+  facultyTotal          Decimal @map("faculty_total") @db.Decimal(20, 2)
+  unitSum               Decimal @map("unit_sum") @db.Decimal(20, 2)
+  difference            Decimal @db.Decimal(20, 2)
+  differencePercentage  Decimal? @map("difference_percentage") @db.Decimal(12, 8)
+  absoluteTolerance     Decimal? @map("absolute_tolerance") @db.Decimal(20, 2)
+  percentageTolerance   Decimal? @map("percentage_tolerance") @db.Decimal(12, 8)
+  status                ReconciliationStatus
+  explanation           String?
+  resolutionNote        String? @map("resolution_note")
+  reviewedBy            String? @map("reviewed_by") @db.Uuid
+  reviewedAt            DateTime? @map("reviewed_at") @db.Timestamptz(6)
+  calculatedAt          DateTime @default(now()) @map("calculated_at") @db.Timestamptz(6)
+  calculationVersion    String @map("calculation_version")
+  sourceImportBatchId   String? @map("source_import_batch_id") @db.Uuid
+  period                ReportingPeriod @relation(fields: [reportingPeriodId], references: [id], onDelete: Restrict)
+  metric                FinancialMetric @relation(fields: [metricId], references: [id], onDelete: Restrict)
+  reviewer              Profile? @relation(fields: [reviewedBy], references: [id])
+  sourceImportBatch     ImportBatch? @relation(fields: [sourceImportBatchId], references: [id])
+
+  @@unique([reportingPeriodId, metricId, calculationVersion])
+  @@map("reconciliations")
+  @@schema("app")
+}
+
+// ---------------------------------------------------------------------------
+// การกำกับดูแล KPI
+// Definition เก็บสูตรและการตั้งค่าแบบมีเวอร์ชัน ส่วน Threshold จะแปลงผล KPI แบบตัวเลข
+// เป็นสถานะสองภาษาที่มีลำดับ เช่น ดี เฝ้าระวัง หรือเสี่ยง
+// ---------------------------------------------------------------------------
+
+/// คำนิยาม KPI แบบมีเวอร์ชันและผ่านการอนุมัติ รองรับข้อมูลต้นทาง ค่าคำนวณ และค่ากำหนดเอง
+model KpiDefinition {
+  id                 String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  code               String
+  nameTh             String @map("name_th")
+  nameEn             String @map("name_en")
+  descriptionTh      String? @map("description_th")
+  descriptionEn      String? @map("description_en")
+  kind               KpiKind
+  unit               KpiUnit
+  direction          KpiDirection @default(NEUTRAL)
+  calculationMethod  String @map("calculation_method")
+  calculationHandler String @map("calculation_handler")
+  configuration      Json @default("{}") @db.JsonB
+  version            Int
+  effectiveFrom      DateTime @map("effective_from") @db.Date
+  effectiveTo        DateTime? @map("effective_to") @db.Date
+  active             Boolean @default(false)
+  approvedBy         String? @map("approved_by") @db.Uuid
+  approvedAt         DateTime? @map("approved_at") @db.Timestamptz(6)
+  approver           Profile? @relation(fields: [approvedBy], references: [id])
+  thresholds         KpiThreshold[]
+
+  @@unique([code, version])
+  @@map("kpi_definitions")
+  @@schema("app")
+}
+
+/// ช่วงค่าของสถานะที่เป็นของ KPI Definition เวอร์ชันหนึ่ง
+model KpiThreshold {
+  id              String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  kpiDefinitionId String @map("kpi_definition_id") @db.Uuid
+  statusCode      String @map("status_code")
+  minValue        Decimal? @map("min_value") @db.Decimal(20, 8)
+  maxValue        Decimal? @map("max_value") @db.Decimal(20, 8)
+  labelTh         String @map("label_th")
+  labelEn         String @map("label_en")
+  displayOrder    Int @map("display_order")
+  active          Boolean @default(false)
+  approvedBy      String? @map("approved_by") @db.Uuid
+  approvedAt      DateTime? @map("approved_at") @db.Timestamptz(6)
+  definition      KpiDefinition @relation(fields: [kpiDefinitionId], references: [id], onDelete: Cascade)
+  approver        Profile? @relation(fields: [approvedBy], references: [id])
+
+  @@unique([kpiDefinitionId, statusCode])
+  @@map("kpi_thresholds")
+  @@schema("app")
+}
+
+// ---------------------------------------------------------------------------
+// การปฏิบัติงานและการตรวจสอบย้อนหลัง
+// Setting เก็บการตั้งค่าระหว่างทำงานที่ไม่ใช่ความลับ ส่วน AuditLog บันทึกว่าใครเป็นผู้ดำเนินการ
+// สำคัญ และมีหน่วยงาน ช่วงเวลา ชุดนำเข้า หรือ entity ใดได้รับผลกระทบ
+// ---------------------------------------------------------------------------
+
+/// การตั้งค่าแอปพลิเคชันที่ไม่ใช่ความลับ โดยข้อมูลลับต้องเก็บในระบบจัดการ secrets
+model SystemSetting {
+  key         String @id
+  value       Json @db.JsonB
+  description String?
+  isSecret    Boolean @default(false) @map("is_secret")
+  updatedBy   String? @map("updated_by") @db.Uuid
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+  updater     Profile? @relation(fields: [updatedBy], references: [id])
+
+  @@map("system_settings")
+  @@schema("app")
+}
+
+/// ประวัติความรับผิดชอบแบบเพิ่มต่อท้ายเท่านั้น ซึ่งเชื่อมการดำเนินการกับบริบททางธุรกิจ
+model AuditLog {
+  id                BigInt @id @default(autoincrement())
+  occurredAt        DateTime @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  actorProfileId    String? @map("actor_profile_id") @db.Uuid
+  action            AuditAction
+  entityType        String @map("entity_type")
+  entityId          String? @map("entity_id")
+  unitId            String? @map("unit_id") @db.Uuid
+  reportingPeriodId String? @map("reporting_period_id") @db.Uuid
+  oldValues         Json? @map("old_values") @db.JsonB
+  newValues         Json? @map("new_values") @db.JsonB
+  sourceType        SourceType? @map("source_type")
+  importBatchId     String? @map("import_batch_id") @db.Uuid
+  requestId         String? @map("request_id")
+  ipAddress         String? @map("ip_address") @db.Inet
+  userAgent         String? @map("user_agent")
+  metadata          Json @default("{}") @db.JsonB
+  actor             Profile? @relation(fields: [actorProfileId], references: [id])
+  unit              OrganizationalUnit? @relation(fields: [unitId], references: [id])
+  reportingPeriod   ReportingPeriod? @relation(fields: [reportingPeriodId], references: [id])
+  importBatch       ImportBatch? @relation(fields: [importBatchId], references: [id])
+
+  @@index([entityType, entityId, occurredAt(sort: Desc)], map: "audit_logs_entity_idx")
+  @@index([actorProfileId, occurredAt(sort: Desc)], map: "audit_logs_actor_idx")
+  @@map("audit_logs")
+  @@schema("app")
+}

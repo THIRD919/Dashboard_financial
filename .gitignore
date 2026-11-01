@@ -1,5 +1,6 @@
 node_modules/
 .next/
+generated/
 
 database/.local/
 .DS_Store

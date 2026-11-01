@@ -31,23 +31,29 @@
   },
   "dependencies": {
     "@electric-sql/pglite": "0.5.4",
+    "@prisma/adapter-pg": "^7.10.0",
+    "@prisma/client": "^7.10.0",
     "@supabase/ssr": "0.7.0",
     "@supabase/supabase-js": "2.57.4",
     "@tailwindcss/postcss": "4.3.3",
+    "dotenv": "^18.0.9",
     "exceljs": "4.4.0",
     "jszip": "3.10.1",
     "lucide-react": "latest",
     "next": "16.2.11",
+    "pg": "^8.23.1",
     "react": "latest",
     "react-dom": "latest",
     "recharts": "3.10.1",
     "tailwindcss": "4.3.3"
   },
   "devDependencies": {
+    "@types/bun": "latest",
     "@types/node": "latest",
+    "@types/pg": "^8.23.1",
     "@types/react": "latest",
     "@types/react-dom": "latest",
-    "typescript": "5.9.3",
-    "@types/bun": "latest"
+    "prisma": "^7.10.0",
+    "typescript": "5.9.3"
   }
 }
